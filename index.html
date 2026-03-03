@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TLE 7: Hand Tools</title>
+    
+    <!-- PWA ICON (Data URI for Offline Support) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%232563eb%22 rx=%2220%22/><text x=%2250%%22 y=%2270%%22 text-anchor=%22middle%22 font-size=%2265%22>🔨</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%232563eb%22 rx=%2220%22/><text x=%2250%%22 y=%2270%%22 text-anchor=%22middle%22 font-size=%2265%22>🔨</text></svg>">
+
+    <!-- PWA MANIFEST (Inline for single-file portability) -->
+    <link rel="manifest" href="data:application/json, { %22name%22: %22Industrial Arts Tools%22, %22short_name%22: %22TLE Tools%22, %22start_url%22: %22.%22, %22display%22: %22standalone%22, %22background_color%22: %22%23ffffff%22, %22theme_color%22: %22%232563eb%22, %22icons%22: [ { %22src%22: %22data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%232563eb%22 rx=%2220%22/><text x=%2250%%22 y=%2270%%22 text-anchor=%22middle%22 font-size=%2265%22>🔨</text></svg>%22, %22sizes%22: %22192x192%22, %22type%22: %22image/svg+xml%22 } ] }">
+
+    <!-- MOBILE SETTINGS -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TLE Tools">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        input:focus { outline: none; border-color: #f97316; }
+        .is-correct-card { border-color: #4ade80 !important; background-color: #f0fdf4 !important; }
+        .is-correct-box { background-color: #f97316 !important; color: white !important; }
+        
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        .tool-content { display: none; }
+        .tool-card.active .tool-content { display: block; }
+        .tool-card.active .chevron-icon { transform: rotate(180deg); }
+        .chevron-icon { transition: transform 0.2s ease; }
+
+        @keyframes pulse-soft {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        .randomizing {
+            animation: pulse-soft 0.1s infinite;
+            color: #f97316;
+        }
+        .locked-card { opacity: 0.5; filter: grayscale(1); pointer-events: none; border-style: dashed !important; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex justify-center items-center">
+
+    <div id="app-container" class="w-full max-w-md h-full bg-white shadow-2xl flex flex-col overflow-hidden relative border-x border-gray-200">
+        <div id="root" class="flex flex-col h-full overflow-hidden"></div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const appData = {
+            categories: [
+                { id: 'review', name: 'Review', icon: 'book-open', color: 'bg-indigo-500', desc: 'Identify the signs on the TV!', phase: 0 },
+                { id: 'motivation', name: 'Motivation', icon: 'lightbulb', color: 'bg-orange-500', desc: 'Solve linear math to reveal letters!', phase: 1 },
+                { id: 'vocabulary', name: 'Unlocking Vocabulary', icon: 'key', color: 'bg-teal-500', desc: 'Understand the key terms we will use.', phase: 2 },
+                { id: 'classification', name: 'Tools Classification', icon: 'layers', color: 'bg-pink-500', desc: 'Hand tools categorized into various groups.', phase: 3 },
+                { id: 'hand_tools_types', name: 'Types of Hand Tools', icon: 'hammer', color: 'bg-blue-500', desc: 'Explore hammers, saws, wrenches, and more!', phase: 4 },
+                { id: 'generalization', name: 'Lesson Generalization', icon: 'sparkles', color: 'bg-indigo-900', desc: 'Generate concepts to summarize the lesson!', phase: 5 },
+                { id: 'group_activity', name: 'Group Activity', icon: 'users', color: 'bg-yellow-600', desc: 'Team up and identify tools and their uses.', phase: 6 },
+                { id: 'quiz', name: 'Quiz', icon: 'check-square', color: 'bg-green-600', desc: 'Test your knowledge on Industrial Arts tools!', phase: 7 }
+            ],
+            reviewRounds: [
+                { id: 1, answer: "Priority Signs" },
+                { id: 2, answer: "Intersection Signs" },
+                { id: 3, answer: "Horizontal Signs" },
+                { id: 4, answer: "Road Width Signs" },
+                { id: 5, answer: "Pedestrian Signs" }
+            ],
+            reviewChoices: ["Priority Signs", "Intersection Signs", "Horizontal Signs", "Road Width Signs", "Pedestrian Signs"],
+            tools: {
+                vocabulary: [
+                    { name: 'HAND TOOLS', desc: 'Simple tools used with hands, usually not powered.', image: '🔧' },
+                    { name: 'POWER TOOLS', desc: 'A tool powered by electricity.', image: '🔌' },
+                    { name: 'HYDRAULIC TOOLS', desc: 'Operated by fluids like water or oil under pressure.', image: '💧' },
+                    { name: 'PNEUMATIC TOOLS', desc: 'Operated by compressed air.', image: '💨' }
+                ],
+                classification: [
+                    { name: '1. Holding tools', desc: 'Bench vise, pipe vise, wood lathe machine, and clamps.', image: '🗜️' },
+                    { name: '2. Driving tools', desc: 'Hammers, rubber mallets, and screwdrivers.', image: '🔨' },
+                    { name: '3. Measuring tools', desc: 'Push-pull tape, caliper, ruler, measuring wheel, meter stick, and wire gauge.', image: '📏' },
+                    { name: '4. Guiding tools', desc: 'Plumb bob and level hose.', image: '🎯' },
+                    { name: '5. Tooth Cutting tools', desc: 'Handsaw, hacksaw, and coping saw.', image: '🪚' },
+                    { name: '6. Marking tools', desc: 'Pencil, chalk line reel, divider, and scratch awl.', image: '✏️' },
+                    { name: '7. Edge cutting tools', desc: 'Chisel, plane, and spokeshave.', image: '🪓' },
+                    { name: '8. Boring tools', desc: 'Gimlet, bradawl, and hand drill.', image: '🌀' },
+                    { name: '9. Gripping & squeezing', desc: 'Pliers, vise grip, and wrenches.', image: '🔧' }
+                ],
+                hand_tools_types: [
+                    { 
+                        id: 'hammer',
+                        name: '1. HAMMER', 
+                        characteristic: 'Hammers are versatile tools with a metal head for striking force and a handle for gripping and control.', 
+                        usage: 'They are essential for driving nails, shaping metal, and breaking objects apart.', 
+                        image: '🔨',
+                        subtypes: [
+                            { name: 'Claw Hammer', desc: 'Most used for driving and removing nails.' },
+                            { name: 'Ball-peen Hammer', desc: 'For peening rivets and shaping metal.' },
+                            { name: 'Sledge Hammer', desc: 'Heavy-duty for more significant tasks.' }
+                        ]
+                    },
+                    { 
+                        id: 'screwdriver',
+                        name: '2. SCREWDRIVERS', 
+                        characteristic: 'Hand tools with a handle and a shaft ending in a tip, designed to fit into the head of a screw to turn it.', 
+                        usage: 'Driving or removing screws.', 
+                        image: '🪛',
+                        subtypes: [
+                            { name: 'Flat head', desc: 'For slotted screws.' },
+                            { name: 'Phillips', desc: 'Cross-shaped, for Phillips screws.' }
+                        ]
+                    },
+                    { 
+                        id: 'wrench',
+                        name: '3. WRENCHES', 
+                        characteristic: 'Adjustable jaws for measuring internal and external dimensions.', 
+                        usage: 'Used for gripping and turning nuts or bolts.', 
+                        image: '🔧',
+                        subtypes: [
+                            { name: 'Open-end & Box-end', desc: 'For nuts and bolts.' },
+                            { name: 'Adjustable Wrench', desc: 'Jaws can be adjusted for various sizes.' }
+                        ]
+                    },
+                    { 
+                        id: 'caliper',
+                        name: '4. CALIPERS', 
+                        characteristic: 'Adjustable jaws for measuring internal and external dimensions.', 
+                        usage: 'Precise measurement of physical dimensions.', 
+                        image: '📐' 
+                    },
+                    { 
+                        id: 'handsaw',
+                        name: '5. HANDSAW', 
+                        characteristic: 'Manual tool requiring physical force to cut materials.', 
+                        usage: 'Used for cutting wood and metal depending on the blade type.', 
+                        image: '🪚',
+                        subtypes: [
+                            { name: 'Rip Saw', desc: 'For cutting along the wood grain.' },
+                            { name: 'Crosscut Saw', desc: 'For cutting across the wood grain.' },
+                            { name: 'Hacksaw', desc: 'Used for cutting metal.' },
+                            { name: 'Coping Saw', desc: 'For intricate curved cuts.' }
+                        ]
+                    },
+                    { 
+                        id: 'pliers',
+                        name: '6. PLIERS', 
+                        characteristic: 'Pliers are hand tools with two levers joined at a fulcrum, featuring jaws or pincers at one end and handles at the other.', 
+                        usage: 'Commonly used to grip and twist wires, bend metal components, hold objects firmly, and cut wires.', 
+                        image: '✂️'
+                    },
+                    { 
+                        id: 'tape',
+                        name: '7. DIGITAL TAPE MEASURE', 
+                        characteristic: 'Digital display, often with memory functions.', 
+                        usage: 'Measuring distances with digital readout.', 
+                        image: '📏' 
+                    },
+                    { 
+                        id: 'laser',
+                        name: '8. LASER LEVELS', 
+                        characteristic: 'Project a laser line to establish straight and level references.', 
+                        usage: 'Establishing straight and level references in construction and layout.', 
+                        image: '🔦' 
+                    }
+                ]
+            },
+            quizQuestions: [
+                { 
+                    question: "What type of tool is powered by electricity instead of manual physical force?", 
+                    options: ["Hand Tool", "Power Tool", "Pneumatic Tool", "Hydraulic Tool"], 
+                    answer: "Power Tool" 
+                },
+                { 
+                    question: "Which driving tool features a metal head and is essential for driving nails and breaking objects apart?", 
+                    options: ["Screwdriver", "Wrench", "Hammer", "Pliers"], 
+                    answer: "Hammer" 
+                },
+                { 
+                    question: "What classification of hand tools do handsaws, hacksaws, and coping saws belong to?", 
+                    options: ["Measuring Tools", "Tooth Cutting Tools", "Driving Tools", "Holding Tools"], 
+                    answer: "Tooth Cutting Tools" 
+                },
+                { 
+                    question: "What measuring tool is used to measure the precise distance between two opposite sides of an object?", 
+                    options: ["Ruler", "Try Square", "Caliper", "Tape Measure"], 
+                    answer: "Caliper" 
+                },
+                { 
+                    question: "Why is it highly important to select the correct hand tool for a specific job?", 
+                    options: [
+                        "To make the tool look newer for a longer time.", 
+                        "To achieve optimal results and prevent mistakes or workplace accidents.", 
+                        "To increase the electricity consumption of the tool.", 
+                        "To impress other people with your tool collection."
+                    ], 
+                    answer: "To achieve optimal results and prevent mistakes or workplace accidents." 
+                }
+            ],
+            motivationData: [
+                { hint: "Always prioritize this when working.", answer: "SAFETY" },
+                { hint: "A common material we cut.", answer: "WOOD" },
+                { hint: "Our topic for today's session.", answer: "HANDTOOLS" }
+            ],
+            generalizationPool: [
+                "Driving Tools", "Cutting Tools", "Measuring Tools", "Holding Tools", 
+                "Marking Tools", "Boring Tools", "Guiding Tools", "Gripping Tools",
+                "Hammer", "Screwdriver", "Wrench", "Caliper", "Handsaw", 
+                "Pliers", "Tape Measure", "Laser Level", "Chisel", "Plane"
+            ]
+        };
+
+        // --- STATE ---
+        let state = {
+            currentScreen: 'home',
+            activeCategory: null,
+            isMenuOpen: false,
+            currentPhase: 0,
+            reviewRound: 0,
+            reviewScore: 0,
+            reviewSelected: null,
+            reviewShuffledChoices: [],
+            motivationRound: 0,
+            motivationInputs: [],
+            motivationProblems: [],
+            isMotivationComplete: false,
+            expandedToolId: null,
+            quizScore: 0,
+            quizStep: 0,
+            quizFinished: false,
+            quizAnswers: []
+        };
+
+        // --- UTILS ---
+        function shuffleArray(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        function generateProblem(targetValue) {
+            const useAddition = Math.random() > 0.5;
+            if (useAddition) {
+                const a = Math.floor(Math.random() * (targetValue - 1)) + 1;
+                const b = targetValue - a;
+                return `${a} + ${b}`;
+            } else {
+                const b = Math.floor(Math.random() * 10) + 1;
+                const a = targetValue + b;
+                return `${a} - ${b}`;
+            }
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function render() {
+            const root = document.getElementById('root');
+            const scrollPos = root.querySelector('.overflow-y-auto')?.scrollTop || 0;
+            
+            root.innerHTML = '';
+            root.appendChild(renderTopBar());
+
+            const content = document.createElement('div');
+            content.className = "flex-1 overflow-y-auto hide-scrollbar bg-gray-50 pb-6";
+            
+            if (state.currentScreen === 'home') content.appendChild(renderHome());
+            else if (state.currentScreen === 'review') content.appendChild(renderReview());
+            else if (state.currentScreen === 'generalization') content.appendChild(renderGeneralization());
+            else if (state.currentScreen === 'hand_tools_types') content.appendChild(renderInteractiveToolsList('blue'));
+            else if (appData.tools[state.currentScreen]) {
+                const colorMap = { vocabulary: 'teal', classification: 'pink' };
+                content.appendChild(renderList(state.currentScreen, colorMap[state.currentScreen] || 'blue'));
+            } else if (state.currentScreen === 'quiz') content.appendChild(renderQuiz());
+            else if (state.currentScreen === 'motivation') content.appendChild(renderMotivation());
+            else if (state.currentScreen === 'group_activity') content.appendChild(renderGroupActivity());
+
+            root.appendChild(content);
+            if (state.isMenuOpen) root.appendChild(renderSideMenu());
+            
+            if (scrollPos > 0) content.scrollTop = scrollPos;
+            lucide.createIcons();
+        }
+
+        function renderTopBar() {
+            const bar = document.createElement('div');
+            bar.className = "bg-blue-600 text-white px-4 py-4 flex items-center shadow-lg z-20 sticky top-0";
+            const isHome = state.currentScreen === 'home';
+            bar.innerHTML = `
+                <button onclick="${isHome ? 'toggleMenu()' : 'goHome()'}" class="mr-4 p-2 rounded-full active:bg-blue-700 transition">
+                    <i data-lucide="${isHome ? 'menu' : 'arrow-left'}"></i>
+                </button>
+                <h1 class="text-lg font-bold flex-1 truncate uppercase tracking-tight">TLE 7: Industrial Arts</h1>
+            `;
+            return bar;
+        }
+
+        function renderHome() {
+            const div = document.createElement('div');
+            div.className = "p-4 space-y-4";
+            
+            const quizCat = appData.categories.find(c => c.id === 'quiz');
+            if (state.quizFinished) {
+                quizCat.desc = `Last Score: ${state.quizScore} / ${appData.quizQuestions.length}`;
+            }
+
+            let welcomeNote = "Complete Review to start the lesson.";
+            let titleText = "Welcome Student";
+
+            if (state.currentPhase >= 2) {
+                titleText = "Lesson 3.1: Hand Tools";
+                welcomeNote = "Select a module to continue.";
+            } else if (state.currentPhase === 1) {
+                titleText = "Welcome Student";
+                welcomeNote = "Review done! Finish Motivation to proceed.";
+            }
+
+            div.innerHTML = `
+                <div class="bg-white p-6 rounded-3xl border border-blue-100 shadow-sm mb-2 text-center">
+                    <h2 class="text-2xl font-black text-blue-900 leading-tight uppercase">${titleText}</h2>
+                    <p class="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest italic">${welcomeNote}</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    ${appData.categories.map((cat, i) => {
+                        const isLocked = cat.phase > state.currentPhase;
+                        return `
+                        <button onclick="navigateTo('${cat.id}', ${i})" 
+                            class="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center text-center transition active:scale-95 ${isLocked ? 'locked-card' : 'hover:border-blue-300'}">
+                            <div class="${cat.color} text-white p-4 rounded-2xl mb-3 shadow-md">
+                                <i data-lucide="${isLocked ? 'lock' : cat.icon}" class="w-8 h-8"></i>
+                            </div>
+                            <span class="text-sm font-bold text-gray-800 uppercase tracking-tight">${cat.name}</span>
+                            <p class="text-[9px] mt-1 text-gray-400 font-bold uppercase leading-tight">${cat.desc}</p>
+                        </button>
+                    `}).join('')}
+                </div>
+            `;
+            return div;
+        }
+
+        function renderGeneralization() {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <div class="bg-indigo-900 text-white p-6 rounded-b-[40px] shadow-lg mb-4 text-center">
+                    <h2 class="text-2xl font-black uppercase italic tracking-tighter">Lesson Generalization</h2>
+                </div>
+                <div class="px-4 space-y-4">
+                    <div class="bg-white p-8 rounded-[40px] shadow-xl border border-indigo-100 relative overflow-hidden">
+                        <div class="relative z-10">
+                            <div class="flex items-center justify-center gap-2 mb-6">
+                                <i data-lucide="sparkles" class="text-indigo-600 w-6 h-6"></i>
+                                <h3 class="text-xs font-black uppercase tracking-widest text-indigo-400">Tool Type Randomizer</h3>
+                            </div>
+                            
+                            <div id="randomizer-box" class="bg-gray-50 rounded-3xl p-8 mb-8 border-2 border-dashed border-indigo-100 min-h-[160px] flex flex-col items-center justify-center text-center">
+                                <div id="random-word-display" class="text-2xl font-black uppercase italic tracking-tighter text-indigo-900 mb-2">
+                                    READY?
+                                </div>
+                                <div id="concept-result" class="hidden grid grid-cols-1 gap-3 w-full">
+                                    <!-- Result words go here -->
+                                </div>
+                            </div>
+
+                            <button id="random-btn" onclick="startRandomizer()" class="w-full py-5 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-2xl shadow-lg active:scale-95 transition-all uppercase tracking-widest text-sm flex items-center justify-center gap-3">
+                                <i data-lucide="refresh-cw" class="w-5 h-5" id="btn-icon"></i>
+                                <span id="btn-text">Generate 2 Tools</span>
+                            </button>
+                            
+                            <div class="mt-8 p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
+                                <p class="text-xs font-bold text-indigo-800 uppercase tracking-tight text-center leading-relaxed">
+                                    "Challenge: Explain how these two hand tool types are used differently or together in industrial arts."
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="finishTask()" class="w-full py-5 bg-indigo-900 text-white font-black rounded-2xl shadow-lg uppercase tracking-widest active:scale-95 transition-transform">Finish & Back to Home</button>
+                </div>
+            `;
+            return div;
+        }
+
+        let randomInterval = null;
+        window.startRandomizer = () => {
+            const btn = document.getElementById('random-btn');
+            const btnText = document.getElementById('btn-text');
+            const display = document.getElementById('random-word-display');
+            const resultBox = document.getElementById('concept-result');
+            const icon = document.getElementById('btn-icon');
+
+            if (randomInterval) {
+                clearInterval(randomInterval);
+                randomInterval = null;
+                
+                const chosen = shuffleArray([...appData.generalizationPool]).slice(0, 2);
+                display.classList.add('hidden');
+                resultBox.classList.remove('hidden');
+                resultBox.innerHTML = chosen.map(word => `
+                    <div class="bg-indigo-600 py-3 px-4 rounded-xl border-b-4 border-indigo-800 text-sm font-black uppercase tracking-tight text-white shadow-md">
+                        ${word}
+                    </div>
+                `).join('');
+                
+                btnText.innerText = "Try Another Pair";
+                btn.classList.remove('bg-red-500');
+                btn.classList.add('bg-orange-500');
+                icon.classList.remove('animate-spin');
+            } else {
+                display.classList.remove('hidden');
+                display.classList.add('randomizing');
+                resultBox.classList.add('hidden');
+                
+                btnText.innerText = "STOP RANDOMIZER";
+                btn.classList.remove('bg-orange-500');
+                btn.classList.add('bg-red-500');
+                icon.classList.add('animate-spin');
+
+                randomInterval = setInterval(() => {
+                    const word = appData.generalizationPool[Math.floor(Math.random() * appData.generalizationPool.length)];
+                    display.innerText = word;
+                }, 80);
+            }
+        };
+
+        function renderReview() {
+            const div = document.createElement('div');
+            const isFinished = state.reviewRound >= appData.reviewRounds.length;
+            if (state.reviewShuffledChoices.length === 0 && !isFinished) {
+                state.reviewShuffledChoices = shuffleArray([...appData.reviewChoices]);
+            }
+            div.innerHTML = `
+                <div class="bg-indigo-600 text-white p-6 rounded-b-[40px] shadow-lg mb-4 text-center">
+                    <h2 class="text-2xl font-black uppercase italic tracking-tighter">Review: Sign Quiz</h2>
+                </div>
+                <div class="px-4 space-y-4 pb-8">
+                    ${!isFinished ? `
+                        <div class="flex justify-between items-center bg-white p-3 rounded-2xl border border-indigo-100 mb-2">
+                            <span class="text-xs font-black text-indigo-600 uppercase tracking-widest">Question ${state.reviewRound + 1}/${appData.reviewRounds.length}</span>
+                            <div class="bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
+                                <span class="text-xs font-black text-indigo-700 uppercase">Score: ${state.reviewScore}</span>
+                            </div>
+                        </div>
+                        <div class="bg-blue-50 border-2 border-blue-200 p-4 rounded-2xl text-center mb-2">
+                             <p class="text-blue-700 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                                <i data-lucide="tv" class="w-4 h-4"></i> LOOK AT THE TV SCREEN
+                             </p>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2">
+                            ${state.reviewShuffledChoices.map(choice => {
+                                const isSelected = state.reviewSelected === choice;
+                                const isCorrect = choice === appData.reviewRounds[state.reviewRound].answer;
+                                let btnClass = "bg-white border-gray-100 text-gray-700";
+                                if (state.reviewSelected) {
+                                    if (isCorrect) btnClass = "bg-green-500 border-green-600 text-white shadow-green-200 scale-105 z-10";
+                                    else if (isSelected) btnClass = "bg-red-500 border-red-600 text-white shadow-red-200";
+                                    else btnClass = "bg-gray-100 border-gray-200 text-gray-400 opacity-50";
+                                }
+                                return `<button onclick="handleReviewChoice('${choice}')" ${state.reviewSelected ? 'disabled' : ''} class="w-full p-4 rounded-xl border-2 shadow-sm text-left font-black uppercase text-xs transition-all duration-300 ${btnClass}">${choice}</button>`;
+                            }).join('')}
+                        </div>
+                        ${state.reviewSelected ? `
+                            <div class="mt-4">
+                                <div class="p-4 rounded-2xl text-center mb-4 ${state.reviewSelected === appData.reviewRounds[state.reviewRound].answer ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}">
+                                    <p class="font-black uppercase text-sm italic tracking-widest">${state.reviewSelected === appData.reviewRounds[state.reviewRound].answer ? 'Excellent! That is correct.' : 'Incorrect. Check the sign again.'}</p>
+                                </div>
+                                <button onclick="nextReviewRound()" class="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2 text-lg uppercase tracking-widest">Next Item <i data-lucide="arrow-right"></i></button>
+                            </div>
+                        ` : ''}
+                    ` : `
+                        <div class="text-center p-8 bg-white rounded-3xl shadow-sm border border-indigo-100">
+                             <div class="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4"><i data-lucide="award" class="w-10 h-10"></i></div>
+                             <h3 class="text-2xl font-black text-gray-800 uppercase italic">Review Complete</h3>
+                             <p class="text-lg font-black text-indigo-600 mt-2 uppercase">Final Score: ${state.reviewScore} / ${appData.reviewRounds.length}</p>
+                             <button onclick="finishTask()" class="w-full py-5 mt-8 bg-indigo-500 text-white font-black rounded-2xl shadow-lg active:scale-95 transition uppercase tracking-widest">Finish & Back to Home</button>
+                        </div>
+                    `}
+                </div>
+            `;
+            return div;
+        }
+
+        window.handleReviewChoice = (choice) => {
+            state.reviewSelected = choice;
+            if (choice === appData.reviewRounds[state.reviewRound].answer) state.reviewScore++;
+            render();
+        };
+
+        window.nextReviewRound = () => {
+            state.reviewRound++;
+            state.reviewSelected = null;
+            state.reviewShuffledChoices = [];
+            render();
+        };
+
+        function renderMotivation() {
+            const div = document.createElement('div');
+            const isFinished = state.motivationRound >= appData.motivationData.length;
+            const currentItem = appData.motivationData[state.motivationRound];
+            const row1 = "ABCDEFGHIJKLM".split('');
+            const row2 = "NOPQRSTUVWXYZ".split('');
+            const renderRow = (chars) => chars.map(l => `<div class="flex flex-col items-center min-w-[20px] bg-orange-50 rounded py-1 border border-orange-100"><span class="text-[9px] font-bold text-gray-800">${l}</span><span class="text-[9px] font-black text-orange-600">${l.charCodeAt(0) - 64}</span></div>`).join('');
+            const conversionTable = `<div class="bg-white border-2 border-orange-100 rounded-2xl p-3 mb-4 shadow-sm"><p class="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-2 text-center">Conversion Key</p><div class="space-y-2"><div class="flex justify-between gap-1">${renderRow(row1)}</div><div class="flex justify-between gap-1">${renderRow(row2)}</div></div></div>`;
+            div.innerHTML = `
+                <div class="bg-orange-500 text-white p-6 rounded-b-[40px] shadow-lg mb-6 text-center"><h2 class="text-2xl font-black mb-1 uppercase italic tracking-tight">Code Breaker</h2></div>
+                <div class="px-4 space-y-4 pb-8">
+                    ${!isFinished ? `
+                        ${conversionTable}
+                        <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm text-center">
+                            <h3 class="text-gray-900 font-extrabold text-xl leading-tight mb-6">"${currentItem.hint}"</h3>
+                            <div class="space-y-2 mb-8">
+                                ${state.motivationProblems.map((prob, idx) => {
+                                    const targetValue = currentItem.answer[idx].charCodeAt(0) - 64;
+                                    const isCorrect = parseInt(state.motivationInputs[idx]) === targetValue;
+                                    return `<div id="row-${idx}" class="flex items-center justify-between p-3 px-4 rounded-2xl border-2 transition-all ${isCorrect ? 'is-correct-card' : 'border-gray-100 bg-gray-50'}"><div class="text-xl font-black text-gray-800 font-mono tracking-tighter">${prob} = ?</div><div class="flex items-center gap-3"><input type="number" oninput="handleMotivationInput(${idx}, this.value)" class="w-12 bg-white text-center py-2 rounded-xl font-black text-lg border" value="${state.motivationInputs[idx] || ''}" ${isCorrect ? 'disabled' : ''} /><div id="char-${idx}" class="w-10 h-10 flex items-center justify-center rounded-xl font-black text-xl ${isCorrect ? 'is-correct-box' : 'bg-gray-200 text-gray-400'}">${isCorrect ? currentItem.answer[idx] : '?'}</div></div></div>`;
+                                }).join('')}
+                            </div>
+                            <div id="motivation-footer">${state.isMotivationComplete ? `<div class="mb-4 p-4 rounded-2xl bg-green-500 text-white shadow-lg border-b-4 border-green-700"><p class="text-xs font-black uppercase tracking-widest opacity-80">Decoded Answer:</p><h4 class="text-3xl font-black tracking-widest uppercase">${currentItem.answer}</h4></div><button onclick="nextMotivationRound()" class="w-full py-5 bg-orange-600 text-white font-black rounded-2xl shadow-lg uppercase active:scale-95 transition-transform">Next Code</button>` : ''}</div>
+                        </div>
+                    ` : `<div class="bg-white p-10 rounded-3xl text-center"><button onclick="finishTask()" class="w-full py-5 bg-orange-500 text-white font-black rounded-2xl uppercase">Finish & Back to Home</button></div>`}
+                </div>
+            `;
+            return div;
+        }
+
+        window.handleMotivationInput = (index, value) => {
+            state.motivationInputs[index] = value;
+            const currentItem = appData.motivationData[state.motivationRound];
+            const target = currentItem.answer[index].charCodeAt(0) - 64;
+            const rowEl = document.getElementById(`row-${index}`);
+            const charEl = document.getElementById(`char-${index}`);
+            const footerEl = document.getElementById('motivation-footer');
+            if (parseInt(value) === target) {
+                if (rowEl) rowEl.className = "flex items-center justify-between p-3 px-4 rounded-2xl border-2 transition-all is-correct-card";
+                if (charEl) { charEl.className = "w-10 h-10 flex items-center justify-center rounded-xl font-black text-xl is-correct-box"; charEl.innerText = currentItem.answer[index]; }
+                const input = rowEl?.querySelector('input');
+                if (input) input.disabled = true;
+                const allCorrect = currentItem.answer.split('').every((l, i) => parseInt(state.motivationInputs[i]) === (l.charCodeAt(0)-64));
+                if (allCorrect) {
+                    state.isMotivationComplete = true;
+                    footerEl.innerHTML = `<div class="mb-4 p-4 rounded-2xl bg-green-500 text-white shadow-lg border-b-4 border-green-700"><p class="text-xs font-black uppercase tracking-widest opacity-80">Decoded Answer:</p><h4 class="text-3xl font-black tracking-widest uppercase">${currentItem.answer}</h4></div><button onclick="nextMotivationRound()" class="w-full py-5 bg-orange-600 text-white font-black rounded-2xl shadow-lg uppercase active:scale-95 transition-transform">Next Code</button>`;
+                }
+            }
+        };
+
+        window.nextMotivationRound = () => {
+            state.motivationRound++;
+            if (state.motivationRound < appData.motivationData.length) initMotivationRound();
+            render();
+        };
+
+        function initMotivationRound() {
+            const currentItem = appData.motivationData[state.motivationRound];
+            state.motivationInputs = new Array(currentItem.answer.length).fill("");
+            state.motivationProblems = currentItem.answer.split('').map(letter => generateProblem(letter.charCodeAt(0) - 64));
+            state.isMotivationComplete = false;
+        }
+
+        window.navigateTo = (id, index) => {
+            const cat = appData.categories[index];
+            if (cat.phase > state.currentPhase) return;
+
+            state.currentScreen = id;
+            state.activeCategory = cat;
+            if (id === 'motivation') initMotivationRound();
+            if (id === 'review') { state.reviewRound = 0; state.reviewScore = 0; state.reviewSelected = null; state.reviewShuffledChoices = []; }
+            if (id === 'quiz') { state.quizStep = 0; state.quizScore = 0; state.quizFinished = false; state.quizAnswers = []; }
+            render();
+        };
+
+        window.goHome = () => { state.currentScreen = 'home'; state.activeCategory = null; render(); };
+        
+        window.finishTask = () => {
+            if (state.activeCategory && state.activeCategory.phase === state.currentPhase) {
+                state.currentPhase++;
+            }
+            goHome();
+        };
+
+        window.toggleMenu = () => { state.isMenuOpen = !state.isMenuOpen; render(); };
+
+        function renderList(key, color) {
+            const items = appData.tools[key];
+            const div = document.createElement('div');
+            div.innerHTML = `<div class="bg-${color}-500 text-white p-6 rounded-b-[40px] shadow-lg mb-6"><h2 class="text-2xl font-black mb-1 uppercase italic tracking-tighter">${state.activeCategory.name}</h2></div><div class="px-4 space-y-4 pb-8">${items.map(item => `<div class="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm"><div class="flex items-center mb-3"><div class="text-4xl mr-4 bg-gray-50 p-3 rounded-2xl">${item.image}</div><div class="flex-1"><h3 class="font-bold text-gray-800 uppercase text-sm">${item.name}</h3><p class="text-xs text-gray-500 leading-relaxed font-medium mt-1">${item.desc}</p></div></div></div>`).join('')}<button onclick="finishTask()" class="w-full py-5 bg-${color}-500 text-white font-black rounded-2xl shadow-lg uppercase">Finish & Back to Home</button></div>`;
+            return div;
+        }
+
+        window.toggleTool = (toolId) => { state.expandedToolId = state.expandedToolId === toolId ? null : toolId; render(); }
+
+        function renderInteractiveToolsList(color) {
+            const items = appData.tools.hand_tools_types;
+            const div = document.createElement('div');
+            div.innerHTML = `<div class="bg-${color}-500 text-white p-6 rounded-b-[40px] shadow-lg mb-6"><h2 class="text-2xl font-black mb-1 uppercase italic tracking-tighter">Types of Hand Tools</h2><p class="text-blue-100 text-[10px] font-black uppercase tracking-widest">Click to view Characteristics & Usage</p></div><div class="px-4 space-y-3 pb-8">${items.map(item => { const isActive = state.expandedToolId === item.id; return `<div class="tool-card bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden ${isActive ? 'active ring-2 ring-blue-500' : ''}"><button onclick="toggleTool('${item.id}')" class="w-full p-5 flex items-center text-left"><div class="text-4xl mr-4 bg-gray-50 p-3 rounded-2xl">${item.image}</div><div class="flex-1"><h3 class="font-black text-gray-800 uppercase text-sm">${item.name}</h3><p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest">${item.subtypes ? 'Has subtypes' : 'Hand tool'}</p></div><i data-lucide="chevron-down" class="chevron-icon text-gray-300"></i></button><div class="tool-content"><div class="p-5 pt-0 border-t border-gray-50 mt-1 space-y-4"><div class="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50"><h4 class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">CHARACTERISTIC</h4><p class="text-xs text-blue-900 font-semibold leading-relaxed">${item.characteristic}</p></div><div class="bg-orange-50/50 p-4 rounded-2xl border border-orange-100/50"><h4 class="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">USAGE</h4><p class="text-xs text-orange-900 font-semibold leading-relaxed">${item.usage}</p></div>${item.subtypes ? `<div class="pt-2"><h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Specific Types:</h4><div class="grid grid-cols-1 gap-2">${item.subtypes.map(sub => `<div class="bg-gray-50 p-3 rounded-2xl border border-gray-100"><p class="text-[11px] font-black text-gray-700 uppercase mb-0.5">${sub.name}</p><p class="text-[10px] text-gray-500 leading-snug font-medium">${sub.desc}</p></div>`).join('')}</div></div>` : ''}</div></div></div>`}).join('')}<button onclick="finishTask()" class="w-full py-5 bg-${color}-500 text-white font-black rounded-2xl shadow-lg uppercase mt-4 active:scale-95 transition-transform">Finish & Back to Home</button></div>`;
+            return div;
+        }
+
+        function renderQuiz() {
+            const div = document.createElement('div');
+            const total = appData.quizQuestions.length;
+            
+            if (state.quizStep < total) {
+                const q = appData.quizQuestions[state.quizStep];
+                div.innerHTML = `
+                    <div class="bg-green-600 text-white p-6 rounded-b-[40px] shadow-lg mb-6 text-center">
+                        <h2 class="text-2xl font-black uppercase italic">Hand Tools Quiz</h2>
+                        <div class="mt-2 text-xs font-black uppercase opacity-75">Question ${state.quizStep + 1} of ${total}</div>
+                    </div>
+                    <div class="px-4 space-y-4 pb-8">
+                        <div class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm text-center">
+                            <p class="font-extrabold text-gray-900 text-lg leading-snug mb-8">"${q.question}"</p>
+                            <div class="grid grid-cols-1 gap-3">
+                                ${q.options.map((opt, i) => `
+                                    <button onclick="handleQuizAnswer('${opt}')" 
+                                        class="w-full text-left p-4 rounded-2xl border-2 border-gray-100 hover:border-green-500 hover:bg-green-50 transition-all font-bold text-gray-700 active:scale-95 flex items-center gap-4">
+                                        <div class="w-8 h-8 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center font-black">${String.fromCharCode(65 + i)}</div>
+                                        <span class="flex-1">${opt}</span>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                state.quizFinished = true;
+                div.innerHTML = `
+                    <div class="bg-green-600 text-white p-6 rounded-b-[40px] shadow-lg mb-6 text-center">
+                        <h2 class="text-2xl font-black uppercase italic">Quiz Results</h2>
+                    </div>
+                    <div class="px-4 text-center">
+                        <div class="bg-white p-10 rounded-[40px] shadow-xl border border-gray-100 mb-6">
+                            <div class="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <i data-lucide="award" class="w-12 h-12"></i>
+                            </div>
+                            <h3 class="text-3xl font-black text-gray-900 uppercase italic">Great Effort!</h3>
+                            <div class="mt-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Final Score</span>
+                                <span class="text-5xl font-black text-green-600">${state.quizScore} <span class="text-2xl text-gray-300">/ ${total}</span></span>
+                            </div>
+                            <p class="mt-6 text-xs text-gray-500 font-bold leading-relaxed uppercase">
+                                Your score has been saved. You can see it on the main menu.
+                            </p>
+                        </div>
+                        <button onclick="finishTask()" class="w-full py-5 bg-green-600 text-white font-black rounded-2xl shadow-lg active:scale-95 transition-transform uppercase tracking-widest">Finish & Back to Home</button>
+                    </div>
+                `;
+            }
+            return div;
+        }
+
+        window.handleQuizAnswer = (selected) => {
+            const correct = appData.quizQuestions[state.quizStep].answer;
+            if (selected === correct) state.quizScore++;
+            state.quizStep++;
+            render();
+        };
+
+        function renderGroupActivity() {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <div class="bg-yellow-600 text-white p-6 rounded-b-[40px] shadow-lg mb-6 text-center">
+                    <h2 class="text-2xl font-black uppercase italic tracking-tighter">Activity: Hand Tools Trio</h2>
+                </div>
+                
+                <div class="px-4 space-y-4 pb-12">
+                    <div class="bg-white p-6 rounded-3xl border border-yellow-100 shadow-sm">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="bg-yellow-100 text-yellow-700 p-2 rounded-xl">
+                                <i data-lucide="info" class="w-5 h-5"></i>
+                            </div>
+                            <h3 class="font-black text-gray-800 uppercase text-sm tracking-tight">Instructions</h3>
+                        </div>
+                        <p class="text-xs text-gray-600 font-bold uppercase leading-relaxed mb-4">
+                            Find exactly <span class="text-gray-900 font-black">3 different hand tools</span> inside your home. Perform the following for each:
+                        </p>
+                        <ul class="text-[11px] text-gray-500 font-bold uppercase space-y-2 ml-2">
+                            <li class="flex items-start gap-2">
+                                <div class="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-1"></div> 
+                                <span>Bring out your <span class="text-gray-800 font-black">creative side</span> by drawing a <span class="text-gray-800 font-black">sketch of the tool you select</span> on a <span class="text-gray-800 font-black">Cartolina</span>.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <div class="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-1"></div> 
+                                <span>Write the tool's name in the table below.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <div class="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-1"></div> 
+                                <span>Describe how it is used.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="overflow-hidden rounded-3xl border border-gray-200 shadow-md bg-white">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-gray-800 text-white">
+                                    <th class="p-3 text-[10px] font-black uppercase tracking-widest text-left border-r border-gray-700">Sketch #</th>
+                                    <th class="p-3 text-[10px] font-black uppercase tracking-widest text-left border-r border-gray-700">Hand Tool Name</th>
+                                    <th class="p-3 text-[10px] font-black uppercase tracking-widest text-left">Usage/Function</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr class="bg-blue-50/50">
+                                    <td class="p-4 text-[11px] font-black text-blue-500 italic border-r border-gray-100">Ex. Box 1</td>
+                                    <td class="p-4 text-[11px] font-black text-gray-800 uppercase border-r border-gray-100">Claw Hammer</td>
+                                    <td class="p-4 text-[10px] text-gray-600 font-semibold leading-tight">Used to drive nails and pull them out.</td>
+                                </tr>
+                                ${[1, 2, 3].map(i => `
+                                    <tr>
+                                        <td class="p-5 text-[11px] font-black text-gray-400 italic border-r border-gray-100">Box ${i}</td>
+                                        <td class="p-5 border-r border-gray-100">
+                                            <div class="h-6 border-b border-gray-200 w-full"></div>
+                                        </td>
+                                        <td class="p-5">
+                                            <div class="h-6 border-b border-gray-200 w-full"></div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button onclick="finishTask()" class="w-full py-5 bg-yellow-600 text-white font-black rounded-2xl shadow-lg uppercase active:scale-95 transition-transform tracking-widest">Finish & Back to Home</button>
+                </div>
+            `;
+            return div;
+        }
+
+        function renderSideMenu() {
+            const div = document.createElement('div');
+            div.className = "absolute inset-0 z-50 flex";
+            div.innerHTML = `<div onclick="toggleMenu()" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div><div class="relative w-4/5 bg-white h-full shadow-2xl flex flex-col"><div class="p-8 bg-blue-600 text-white"><h2 class="text-2xl font-black uppercase italic tracking-tighter">Workshop Navigation</h2></div><div class="flex-1 py-4 overflow-y-auto">${appData.categories.map((cat, i) => {
+                const isLocked = cat.phase > state.currentPhase;
+                return `<div onclick="${isLocked ? '' : `MapsTo('${cat.id}', ${i}); toggleMenu();`}" class="px-6 py-5 flex items-center border-b border-gray-50 active:bg-gray-100 transition-colors ${isLocked ? 'opacity-30' : ''}"><div class="${cat.color} text-white p-2 rounded-xl mr-4"><i data-lucide="${isLocked ? 'lock' : cat.icon}" class="w-6 h-6"></i></div><span class="text-sm font-black text-gray-800 uppercase">${cat.name}</span></div>`
+            }).join('')}</div></div>`;
+            return div;
+        }
+
+        window.onload = render;
+
+        // PWA SERVICE WORKER REGISTRATION (Minimal logic for single-file installability)
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('fetch', function(event) {
+                    event.respondWith(fetch(event.request));
+                });
+            `;
+            const blob = new Blob([swCode], {type: 'application/javascript'});
+            const swUrl = URL.createObjectURL(blob);
+            navigator.serviceWorker.register(swUrl).catch(() => {});
+        }
+    </script>
+</body>
+</html>
